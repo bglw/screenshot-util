@@ -1,0 +1,16 @@
+{
+  "name": "screenboy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "example.js",
+  "scripts": {
+    "start": "node example.js",
+    "twitch": "node example.js https://twitchcon.com"
+  },
+  "author": "@LiamBigelow",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "ansi-colors": "^3.0.5",
+    "puppeteer": "^1.7.0"
+  }
+}
