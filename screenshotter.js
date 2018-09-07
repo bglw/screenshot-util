@@ -1,6 +1,8 @@
 const puppeteer = require('puppeteer');
+const express = require('express');
+const fp = require("find-free-port");
 const c = require('ansi-colors');
-const timeout = ms => new Promise(res => setTimeout(res, ms))
+const timeout = ms => new Promise(res => setTimeout(res, ms));
 
 function Screenshotter(options) {
     const defaults = {
@@ -30,6 +32,20 @@ Screenshotter.prototype.launch = function () {
     puppeteer.launch().then(async browser => {
         screenshotter.options.browser = browser;
     });
+}
+
+Screenshotter.prototype.serve = async function (path) {
+    process.stdout.write(c.yellow(`Waiting for Express to launch`));
+    let screenshotter = this;
+    const app = express();
+    process.stdout.write(c.yellow(`.`));
+    let [port] = await fp(5000);
+    app.use(express.static(path));
+    screenshotter.options.app = app;
+    process.stdout.write(c.yellow(`.`));
+    screenshotter.options.server = await app.listen(port);
+    console.log(c.greenBright("✓"));
+    return `http://localhost:${port}/`;
 }
 
 Screenshotter.prototype.takeScreenshot = async function (url) {
@@ -66,8 +82,12 @@ Screenshotter.prototype.takeScreenshot = async function (url) {
     })
 }
 
-Screenshotter.prototype.end = function () {
-    this.options.browser.close();
+Screenshotter.prototype.shutdownBrowser = async function () {
+    await this.options.browser.close();
+}
+
+Screenshotter.prototype.shutdownServer = async function () {
+    await this.options.server.close();
 }
 
 module.exports = Screenshotter;

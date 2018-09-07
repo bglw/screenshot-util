@@ -26,6 +26,37 @@ go("https://miniclip.com");
 screenshotter.launch();
 ```
 
+```javascript
+const Screenshotter = require('./screenshotter.js');
+
+let screenshotter = new Screenshotter({
+    screenSize: {width: 1920, height: 1080},
+    fullPage: false,
+    base64: true
+})
+
+async function go(path) {
+    let url = await screenshotter.serve(path);
+    let img = await screenshotter.takeScreenshot(url);
+    // do something with img
+    screenshotter.shutdownBrowser();
+    screenshotter.shutdownServer();
+}
+go("/site/dist/");
+
+screenshotter.launch();
+```
+
+## Main methods:
+`launch()`  
+Starts up puppeteer  
+  
+`serve(path)`  
+Starts an express server on a free port and returns the url  
+  
+`takeScreenshot(url)`  
+Opens given URL in puppeteer and returns a screenshot as either base64 or binary  
+
 ## Constructor Options
 Option | Default | Description
 --- | --- | ---

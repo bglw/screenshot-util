@@ -7,11 +7,17 @@ let screenshotter = new Screenshotter({
     base64: false
 })
 
-async function go(url) {
-    let img = await screenshotter.takeScreenshot(url);
+async function go(url, path) {
+    let dest_url = url;
+    if (path) {
+        url = await screenshotter.serve(path);
+        dest_url = dest_url.replace(/^https?:\/\/.+?(\/|$)/, url);
+    }
+    let img = await screenshotter.takeScreenshot(dest_url);
     fs.writeFile('image.png', img, (error) => {});
-    screenshotter.end();
+    screenshotter.shutdownBrowser();
+    screenshotter.shutdownServer();
 }
-go(process.argv[2]);
+go(process.argv[2], process.argv[3]);
 
 screenshotter.launch();
