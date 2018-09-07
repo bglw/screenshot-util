@@ -47,6 +47,10 @@ go("/site/dist/");
 screenshotter.launch();
 ```
 
+### Docker Step:
+`node docker-step.js /input/path/ /output/path/`  
+Outputs *image.png*
+
 ## Main methods:
 `launch()`  
 Starts up puppeteer  
