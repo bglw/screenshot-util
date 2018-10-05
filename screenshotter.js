@@ -8,8 +8,11 @@ function Screenshotter(options) {
     const defaults = {
         fullPage: false,
         url: "https://cloudcannon.com",
-        screenSize: {width: 1920, height: 1080},
-        base64: false
+        base64: false,
+        docker: false,
+        delay: 300,
+        path: ".",
+        portInc: 0
     }
     this.options = Object.assign({}, defaults, options);
 }
@@ -21,65 +24,95 @@ Screenshotter.prototype.puppetLaunched = function () {
 Screenshotter.prototype.puppetCheck = async function () {
     while (!this.puppetLaunched()) {
         await timeout(500);
-        process.stdout.write(c.yellow(`.`));
+        process.stdout.write(c.yellow(`:`));
     }
-    console.log(c.greenBright("✓"));
     return;
 };
 
 Screenshotter.prototype.launch = function () {
     let screenshotter = this;
-    puppeteer.launch().then(async browser => {
+    let args = [];
+    if (screenshotter.options.docker) args.push(...['--no-sandbox', '--disable-setuid-sandbox'])
+    puppeteer.launch({
+        args: args
+    }).then(async browser => {
         screenshotter.options.browser = browser;
     });
 }
 
-Screenshotter.prototype.serve = async function (path) {
-    process.stdout.write(c.yellow(`Waiting for Express to launch`));
+Screenshotter.prototype.serve = async function (path, portInc) {
     let screenshotter = this;
+    if (!path) path = screenshotter.options.path;
+    if (!portInc) portInc = screenshotter.options.portInc; 
+    if (screenshotter.options.server) {
+        const port = screenshotter.options.server.address().port;
+        return `http://localhost:${port}`
+    }
+    process.stdout.write(c.yellow('Launching webserver...'));
     const app = express();
-    process.stdout.write(c.yellow(`.`));
+    process.stdout.write(c.yellow('.'));
     let [port] = await fp(5000);
+    port += portInc;
     app.use(express.static(path));
     screenshotter.options.app = app;
-    process.stdout.write(c.yellow(`.`));
+    process.stdout.write(c.yellow('.\n'));
     screenshotter.options.server = await app.listen(port);
-    console.log(c.greenBright("✓"));
-    return `http://localhost:${port}/`;
+    console.log(c.greenBright(`Done ✓`));
+    return `http://localhost:${port}`;
 }
 
-Screenshotter.prototype.takeScreenshot = async function (url) {
-    let screenshotter = this;
-    url = url || screenshotter.options.url;
+Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
+    let requestUrl = (serverUrl + "/" + url).replace(/\//g, "/");
 
-    process.stdout.write(c.yellow(`Waiting for Puppetter to launch`));
-    await screenshotter.puppetCheck();
-
-    console.log(c.cyan(`Opening ${url}`));
-
+    console.log(`Loading ${url} on ${screenSize.name}`);
+    console.log('Lanching page');
     return await this.options.browser.newPage().then(async page => {
         await page.emulateMedia('screen');
+        await page.setUserAgent('Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Safari/537.36');
         await page.setViewport({
-            width: screenshotter.options.screenSize.width,
-            height: screenshotter.options.screenSize.height
+            width: screenSize.width,
+            height: screenSize.height
         });
-        console.log(c.cyan(`Waiting for load`));
+        console.log(`Navigating to ${requestUrl}`);
+        var successful = true;
         await Promise.all([
-            page.waitForNavigation(),
-            page.goto(url)
-        ]);
-        console.log(c.cyan(`Screenshotting`));
-        let img = await page.screenshot({
-            fullPage: screenshotter.options.fullPage,
-            encoding: (screenshotter.options.base64?"base64":"binary")
+            page.goto(requestUrl),
+            page.waitForNavigation({ waitUntil: 'networkidle0' })
+        ]).catch(() => {
+            successful = false;
         });
+        if (successful) {
+            console.log(`Navigated to ${page.url()}`);
+            await page._client.send('Animation.setPlaybackRate', { playbackRate: 20 });
+            return page;
+        }
+        return null;
+    });
+}
 
-        console.log(c.greenBright(`Screenshot complete`));
+Screenshotter.prototype.takeScreenshot = async function (page) {
+    if (this.options.delay) await timeout(this.options.delay);
+    console.log(`Taking screenshot of ${page.url()}`);
+    let screenshotOptions = {
+        encoding: (this.options.base64 ? "base64" : "binary")
+    };
+    const bodyHandle = await page.$('body');
+    const { width, height } = await bodyHandle.boundingBox();
+    if (this.options.fullPage) {
+        screenshotOptions.clip = {
+            x: 0,
+            y: 0,
+            width,
+            height
+        };
+    }
+    const screenshot = await page.screenshot(screenshotOptions);
+    await bodyHandle.dispose();
 
-        await page.close();
+    console.log(c.greenBright(`Screenshot completed ${page.url()} ✓`));
 
-        return img;
-    })
+    await page.close();
+    return screenshot;
 }
 
 Screenshotter.prototype.shutdownBrowser = async function () {

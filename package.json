@@ -1,11 +1,10 @@
 {
-  "name": "screenboy",
+  "name": "screenshot-util",
   "version": "1.0.0",
   "description": "",
-  "main": "example.js",
+  "main": "screenshotter.js",
   "scripts": {
-    "start": "node example.js",
-    "twitch": "node example.js https://twitchcon.com"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "@LiamBigelow",
   "license": "UNLICENSED",
