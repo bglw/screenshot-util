@@ -1,11 +1,11 @@
 # screenshot-util
 
-`npm install screenshot-util`
+`npm install @cloudcannon/screenshot-util`
 
 ## Screenshotter Usage:
 
 ```javascript
-const Screenshotter = require('screenshot-util');
+const Screenshotter = require('@cloudcannon/screenshot-util');
 
 var screenshotter = new Screenshotter({
     dest: "screenshots",

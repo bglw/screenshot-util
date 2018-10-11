@@ -1,5 +1,5 @@
 {
-  "name": "screenshot-util",
+  "name": "@cloudcannon/screenshot-util",
   "version": "1.0.0",
   "description": "",
   "main": "screenshotter.js",
