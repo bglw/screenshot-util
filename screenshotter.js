@@ -65,29 +65,34 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
     let requestUrl = (serverUrl + "/" + url).replace(/\//g, "/");
 
     console.log(`Loading ${url} on ${screenSize.name}`);
-    console.log('Lanching page');
-    return await this.options.browser.newPage().then(async page => {
-        await page.emulateMedia('screen');
-        await page.setUserAgent('Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Safari/537.36');
-        await page.setViewport({
-            width: screenSize.width,
-            height: screenSize.height
-        });
-        console.log(`Navigating to ${requestUrl}`);
-        var successful = true;
-        await Promise.all([
-            page.goto(requestUrl),
-            page.waitForNavigation({ waitUntil: 'networkidle0' })
-        ]).catch(() => {
-            successful = false;
-        });
-        if (successful) {
-            console.log(`Navigated to ${page.url()}`);
-            await page._client.send('Animation.setPlaybackRate', { playbackRate: 20 });
-            return page;
-        }
-        return null;
+    console.log('Launching page');
+
+    const page = await this.options.browser.newPage();
+
+    console.log('Setting up page');
+    await page.emulateMedia('screen');
+    await page.setUserAgent('Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Safari/537.36');
+    await page.setViewport({
+        width: screenSize.width,
+        height: screenSize.height
     });
+
+    console.log(`Navigating to ${requestUrl}`);
+    var successful = true;
+    await Promise.all([
+        page.goto(requestUrl),
+        page.waitForNavigation({ waitUntil: 'networkidle0' })
+    ]).catch(() => {
+        successful = false;
+    });
+
+    if (successful) {
+        console.log(`Navigated to ${page.url()}`);
+        await page._client.send('Animation.setPlaybackRate', { playbackRate: 20 });
+        return page;
+    }
+
+    return page;
 }
 
 Screenshotter.prototype.takeScreenshot = async function (page) {
