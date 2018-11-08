@@ -32,7 +32,7 @@ Screenshotter.prototype.puppetCheck = async function () {
 Screenshotter.prototype.launch = function () {
     let screenshotter = this;
     let args = [];
-    if (screenshotter.options.docker) args.push(...['--no-sandbox', '--disable-setuid-sandbox'])
+    if (screenshotter.options.docker) args.push(...['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'])
     puppeteer.launch({
         args: args
     }).then(async browser => {
