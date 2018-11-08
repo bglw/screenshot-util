@@ -86,7 +86,6 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
       log('A request was made:', interceptedRequest.url());
     }
     page.on('request', logRequest);
-    page.once('load', () => log('Page loaded!'));
 
     try {
       await page.goto(requestUrl, {waitUntil: 'load'});
@@ -107,13 +106,19 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
 }
 
 Screenshotter.prototype.takeScreenshot = async function (page) {
-    if (this.options.delay) await timeout(this.options.delay);
-    log(`Taking screenshot of ${page.url()}`);
-    let screenshotOptions = {
-        encoding: (this.options.base64 ? "base64" : "binary")
-    };
+    if (this.options.delay) {
+      log(`Waiting ${this.options.delay}ms`);
+      await timeout(this.options.delay);
+    }
+
+    let screenshotOptions = {encoding: (this.options.base64 ? "base64" : "binary")};
+
+    log(`Finding body`);
     const bodyHandle = await page.$('body');
+
+    log(`Finding bounding box`);
     const { width, height } = await bodyHandle.boundingBox();
+
     if (this.options.fullPage) {
         screenshotOptions.clip = {
             x: 0,
@@ -122,12 +127,18 @@ Screenshotter.prototype.takeScreenshot = async function (page) {
             height
         };
     }
+
+    log(`Taking screenshot at ${width}px by ${height}px`);
     const screenshot = await page.screenshot(screenshotOptions);
+
+    log(`Disposing of body handler`);
     await bodyHandle.dispose();
 
     log(c.greenBright(`Screenshot completed ${page.url()} ✓`));
 
     await page.close();
+    log(`Page closed`);
+
     return screenshot;
 }
 
