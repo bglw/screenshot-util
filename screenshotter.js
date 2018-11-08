@@ -82,8 +82,8 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
     console.log(`Navigating to ${requestUrl}`);
     var successful = true;
     await Promise.all([
-        page.goto(requestUrl),
-        page.waitForNavigation({ timeout: MAX_PUPPETEER_TIMEOUT, waitUntil: 'networkidle2' })
+        page.waitForNavigation({ timeout: MAX_PUPPETEER_TIMEOUT, waitUntil: 'networkidle2' }),
+        page.goto(requestUrl)
     ]).catch(() => {
         successful = false;
     });
