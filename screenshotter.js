@@ -92,17 +92,15 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
       await page.goto(requestUrl, {waitUntil: 'networkidle2'});
       log(`Navigated to ${page.url()}`);
     } catch (e) {
-      if (!(e instanceof TimeoutError)) {
-        log(`Navigation failed on ${page.url()}`);
+      if (e instanceof TimeoutError) {
+        log(`Navigation timed out on ${page.url()}, trying to continue`);
+      } else {
+        log(`Navigation failed on ${page.url()}, trying to continue`);
         log.error(e);
-        return page;
       }
-
-      log(`Navigation timed out on ${page.url()}, trying to continue`);
-    } finally {
-      page.removeListener('request', logRequest);
     }
-
+    
+    page.removeListener('request', logRequest);
     await page._client.send('Animation.setPlaybackRate', { playbackRate: 20 });
     return page;
 }
