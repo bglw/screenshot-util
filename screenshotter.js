@@ -99,9 +99,12 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
         log.error(e);
       }
     }
-    
+
     page.removeListener('request', logRequest);
+    log(`Setting animation playback rate to 20x on ${page.url()}`);
     await page._client.send('Animation.setPlaybackRate', { playbackRate: 20 });
+    log(`Animation playback rate set on ${page.url()}`);
+
     return page;
 }
 
