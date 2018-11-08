@@ -4,6 +4,8 @@ const fp = require("find-free-port");
 const c = require('ansi-colors');
 const timeout = ms => new Promise(res => setTimeout(res, ms));
 
+const MAX_PUPPETEER_TIMEOUT = 60000;
+
 function Screenshotter(options) {
     const defaults = {
         fullPage: false,
@@ -81,7 +83,7 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
     var successful = true;
     await Promise.all([
         page.goto(requestUrl),
-        page.waitForNavigation({ waitUntil: 'networkidle2' })
+        page.waitForNavigation({ timeout: MAX_PUPPETEER_TIMEOUT, waitUntil: 'networkidle2' })
     ]).catch(() => {
         successful = false;
     });
