@@ -113,11 +113,11 @@ Screenshotter.prototype.takeScreenshot = async function (page) {
 
     let screenshotOptions = {encoding: (this.options.base64 ? "base64" : "binary")};
 
-    log(`Finding body`);
-    const bodyHandle = await page.$('body');
-
-    log(`Finding bounding box`);
-    const { width, height } = await bodyHandle.boundingBox();
+    log(`Finding page size`);
+    const { width, height } = await page.evaluate(() => {
+        const body = document.querySelector('body');
+        return body.getBoundingClientRect();
+    }).catch(e => console.error(e));
 
     if (this.options.fullPage) {
         screenshotOptions.clip = {
@@ -130,9 +130,6 @@ Screenshotter.prototype.takeScreenshot = async function (page) {
 
     log(`Taking screenshot at ${width}px by ${height}px`);
     const screenshot = await page.screenshot(screenshotOptions);
-
-    log(`Disposing of body handler`);
-    await bodyHandle.dispose();
 
     log(c.greenBright(`Screenshot completed ${page.url()} ✓`));
 
