@@ -2,6 +2,7 @@ const puppeteer = require('puppeteer');
 const express = require('express');
 const fp = require("find-free-port");
 const c = require('ansi-colors');
+const log = require('fancy-log');
 const timeout = ms => new Promise(res => setTimeout(res, ms));
 
 const MAX_PUPPETEER_TIMEOUT = 60000;
@@ -59,19 +60,19 @@ Screenshotter.prototype.serve = async function (path, portInc) {
     screenshotter.options.app = app;
     process.stdout.write(c.yellow('.\n'));
     screenshotter.options.server = await app.listen(port);
-    console.log(c.greenBright(`Done ✓`));
+    log(c.greenBright(`Done ✓`));
     return `http://localhost:${port}`;
 }
 
 Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
     let requestUrl = (serverUrl + "/" + url).replace(/\//g, "/");
 
-    console.log(`Loading ${url} on ${screenSize.name}`);
-    console.log('Launching page');
+    log(`Loading ${url} on ${screenSize.name}`);
+    log('Launching page');
 
     const page = await this.options.browser.newPage();
 
-    console.log('Setting up page');
+    log('Setting up page');
     await page.emulateMedia('screen');
     await page.setUserAgent('Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Safari/537.36');
     await page.setViewport({
@@ -79,25 +80,23 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
         height: screenSize.height
     });
 
-    console.log(`Navigating to ${requestUrl}`);
+    log(`Navigating to ${requestUrl}`);
     function logRequest(interceptedRequest) {
-      console.log('A request was made:', interceptedRequest.url());
+      log('A request was made:', interceptedRequest.url());
     }
     page.on('request', logRequest);
-    page.once('load', () => console.log('Page loaded!'));
+    page.once('load', () => log('Page loaded!'));
 
     var successful = true;
-    await Promise.all([
-        page.waitForNavigation({ timeout: MAX_PUPPETEER_TIMEOUT, waitUntil: 'networkidle2' }),
-        page.goto(requestUrl)
-    ]).catch(() => {
+    await page.goto(requestUrl, {waitUntil: 'networkidle2'}).catch((e) => {
+        log.error(e);
         successful = false;
     });
 
     page.removeListener('request', logRequest);
 
     if (successful) {
-        console.log(`Navigated to ${page.url()}`);
+        log(`Navigated to ${page.url()}`);
         await page._client.send('Animation.setPlaybackRate', { playbackRate: 20 });
         return page;
     }
@@ -107,7 +106,7 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
 
 Screenshotter.prototype.takeScreenshot = async function (page) {
     if (this.options.delay) await timeout(this.options.delay);
-    console.log(`Taking screenshot of ${page.url()}`);
+    log(`Taking screenshot of ${page.url()}`);
     let screenshotOptions = {
         encoding: (this.options.base64 ? "base64" : "binary")
     };
@@ -124,7 +123,7 @@ Screenshotter.prototype.takeScreenshot = async function (page) {
     const screenshot = await page.screenshot(screenshotOptions);
     await bodyHandle.dispose();
 
-    console.log(c.greenBright(`Screenshot completed ${page.url()} ✓`));
+    log(c.greenBright(`Screenshot completed ${page.url()} ✓`));
 
     await page.close();
     return screenshot;
