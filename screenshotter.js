@@ -45,7 +45,7 @@ Screenshotter.prototype.launch = function () {
 Screenshotter.prototype.serve = async function (path, portInc) {
     let screenshotter = this;
     if (!path) path = screenshotter.options.path;
-    if (!portInc) portInc = screenshotter.options.portInc; 
+    if (!portInc) portInc = screenshotter.options.portInc;
     if (screenshotter.options.server) {
         const port = screenshotter.options.server.address().port;
         return `http://localhost:${port}`
@@ -80,6 +80,12 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
     });
 
     console.log(`Navigating to ${requestUrl}`);
+    function logRequest(interceptedRequest) {
+      console.log('A request was made:', interceptedRequest.url());
+    }
+    page.on('request', logRequest);
+    page.once('load', () => console.log('Page loaded!'));
+
     var successful = true;
     await Promise.all([
         page.waitForNavigation({ timeout: MAX_PUPPETEER_TIMEOUT, waitUntil: 'networkidle2' }),
@@ -87,6 +93,8 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
     ]).catch(() => {
         successful = false;
     });
+
+    page.removeListener('request', logRequest);
 
     if (successful) {
         console.log(`Navigated to ${page.url()}`);
