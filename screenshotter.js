@@ -3,6 +3,7 @@ const express = require('express');
 const fp = require("find-free-port");
 const c = require('ansi-colors');
 const log = require('fancy-log');
+const {TimeoutError} = require('puppeteer/Errors');
 const timeout = ms => new Promise(res => setTimeout(res, ms));
 
 const MAX_PUPPETEER_TIMEOUT = 60000;
@@ -87,20 +88,22 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
     page.on('request', logRequest);
     page.once('load', () => log('Page loaded!'));
 
-    var successful = true;
-    await page.goto(requestUrl, {waitUntil: 'networkidle2'}).catch((e) => {
+    try {
+      await page.goto(requestUrl, {waitUntil: 'networkidle2'});
+      log(`Navigated to ${page.url()}`);
+    } catch (e) {
+      if (!(e instanceof TimeoutError)) {
+        log(`Navigation failed on ${page.url()}`);
         log.error(e);
-        successful = false;
-    });
-
-    page.removeListener('request', logRequest);
-
-    if (successful) {
-        log(`Navigated to ${page.url()}`);
-        await page._client.send('Animation.setPlaybackRate', { playbackRate: 20 });
         return page;
+      }
+
+      log(`Navigation timed out on ${page.url()}, trying to continue`);
+    } finally {
+      page.removeListener('request', logRequest);
     }
 
+    await page._client.send('Animation.setPlaybackRate', { playbackRate: 20 });
     return page;
 }
 
