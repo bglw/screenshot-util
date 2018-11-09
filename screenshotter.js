@@ -18,6 +18,7 @@ function Screenshotter(options) {
         fullPage: false,
         url: "https://cloudcannon.com",
         requestFilters: null, // ['www.googletagmanager.com', 'www.google-analytics.com', 'www.youtube.com']
+        logServerCalls: false,
         base64: false,
         docker: false,
         delay: 300,
@@ -64,7 +65,9 @@ Screenshotter.prototype.launchServer = async function (path, portInc) {
     let [port] = await fp(5000);
     port += portInc;
 
-    this.expressApp.use(morgan('tiny'));
+    if (this.options.logServerCalls) {
+      this.expressApp.use(morgan('tiny'));
+    }
     this.expressApp.use(express.static(path));
     process.stdout.write(c.yellow('.\n'));
 
@@ -161,8 +164,6 @@ Screenshotter.prototype.takeScreenshot = async function (page) {
 
     log(c.greenBright(`Screenshot completed ${page.url()} ✓`));
 
-    log(`Page clearing`);
-    await page.goto('about:blank');
     log(`Page closing`);
     await page.close();
     log(`Page closed`);
