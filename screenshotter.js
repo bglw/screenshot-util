@@ -17,6 +17,7 @@ function Screenshotter(options) {
     const defaults = {
         fullPage: false,
         url: "https://cloudcannon.com",
+        requestFilters: null, // ['www.googletagmanager.com', 'www.google-analytics.com', 'www.youtube.com']
         base64: false,
         docker: false,
         delay: 300,
@@ -89,26 +90,23 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
         height: screenSize.height
     });
 
-    await page.setRequestInterception(true);
-    function interceptRequests(interceptedRequest) {
-      const url = interceptedRequest.url();
-      const filters = [
-        'cdn.walkme.com',
-        'www.googletagmanager.com',
-        'www.google-analytics.com',
-        'www.youtube.com'
-      ];
-      const shouldAbort = filters.some((urlPart) => url.includes(urlPart));
-      if (shouldAbort) {
-        log(c.yellow('Request blocked: ') + url);
-        interceptedRequest.abort();
-      } else {
-        log(c.blue('Request started: ') + url);
-        interceptedRequest.continue();
+    if (this.options.requestFilters) {
+      await page.setRequestInterception(true);
+      function interceptRequests(interceptedRequest) {
+        const url = interceptedRequest.url();
+        const filters = this.options.requestFilters;
+        const shouldAbort = filters.some((urlPart) => url.includes(urlPart));
+        if (shouldAbort) {
+          log(c.yellow('Request blocked: ') + url);
+          interceptedRequest.abort();
+        } else {
+          log(c.blue('Request started: ') + url);
+          interceptedRequest.continue();
+        }
       }
-    }
 
-    page.on('request', interceptRequests);
+      page.on('request', interceptRequests);
+    }
 
     log(`Navigating to ${requestUrl}`);
 
@@ -128,7 +126,9 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
       }
     }
 
-    page.removeListener('request', interceptRequests);
+    if (this.options.requestFilters) {
+      page.removeListener('request', interceptRequests)
+    }
     return successful ? page : null;
 }
 
