@@ -93,11 +93,12 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
         height: screenSize.height
     });
 
-    if (this.options.requestFilters) {
+    let filters = this.options.requestFilters;
+    if (filters) {
       await page.setRequestInterception(true);
       function interceptRequests(interceptedRequest) {
         const url = interceptedRequest.url();
-        const filters = this.options.requestFilters;
+        const filters = filters;
         const shouldAbort = filters.some((urlPart) => url.includes(urlPart));
         if (shouldAbort) {
           log(c.yellow('Request blocked: ') + url);
@@ -129,7 +130,7 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
       }
     }
 
-    if (this.options.requestFilters) {
+    if (filters) {
       page.removeListener('request', interceptRequests)
     }
     return successful ? page : null;
