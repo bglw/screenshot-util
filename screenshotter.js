@@ -82,21 +82,23 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
     });
 
     await page.setRequestInterception(true);
-    page.on('request', function interceptRequests(interceptedRequest) {
+    function interceptRequests(interceptedRequest) {
       const url = interceptedRequest.url();
       const filters = [
         'www.google-analytics.com',
         'www.youtube.com'
       ];
-      const shouldAbort = filters.some((urlPart) => url.includes("urlPart"));
+      const shouldAbort = filters.some((urlPart) => url.includes(urlPart));
       if (shouldAbort) {
-        log(c.yellow('Request blocked: ') + interceptedRequest.url());
+        log(c.yellow('Request blocked: ') + url);
         interceptedRequest.abort();
       } else {
-        log(c.blue('Request started: ') + interceptedRequest.url());
+        log(c.blue('Request started: ') + url);
         interceptedRequest.continue();
       }
-    });
+    }
+
+    page.on('request', interceptRequests);
 
     log(`Navigating to ${requestUrl}`);
     try {
