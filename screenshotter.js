@@ -81,12 +81,24 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
         height: screenSize.height
     });
 
-    log(`Navigating to ${requestUrl}`);
-    function logRequest(interceptedRequest) {
-      log('A request was made:', interceptedRequest.url());
-    }
-    page.on('request', logRequest);
+    await page.setRequestInterception(true);
+    page.on('request', function interceptRequests(interceptedRequest) {
+      const url = interceptedRequest.url();
+      const filters = [
+        'www.google-analytics.com',
+        'www.youtube.com'
+      ];
+      const shouldAbort = filters.some((urlPart) => url.includes("urlPart"));
+      if (shouldAbort) {
+        log(c.yellow('Request blocked: ') + interceptedRequest.url());
+        interceptedRequest.abort();
+      } else {
+        log(c.blue('Request started: ') + interceptedRequest.url());
+        interceptedRequest.continue();
+      }
+    });
 
+    log(`Navigating to ${requestUrl}`);
     try {
       await page.goto(requestUrl, {waitUntil: 'load'});
       log(`Navigated to ${page.url()}`);
@@ -101,7 +113,7 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
       }
     }
 
-    page.removeListener('request', logRequest);
+    page.removeListener('request', interceptRequests);
     return page;
 }
 
@@ -116,8 +128,9 @@ Screenshotter.prototype.takeScreenshot = async function (page) {
     log(`Finding page size`);
     const { width, height } = await page.evaluate(() => {
         const body = document.querySelector('body');
-        return body.getBoundingClientRect();
-    }).catch(e => console.error(e));
+        const boundingBox = body.getBoundingClientRect();
+        return {width: boundingBox.width, height: boundingBox.height};
+    }).catch(e => log.error(e));
 
     if (this.options.fullPage) {
         screenshotOptions.clip = {
