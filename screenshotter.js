@@ -114,7 +114,10 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
 
     var successful = false;
     try {
-      await page.goto(requestUrl, {timeout: 60000, waitUntil: 'load'});
+      await page.goto(requestUrl);
+      log(c.green(`Waiting ${this.options.delay}ms`));
+      await timeout(this.options.delay);
+      
       log(`Navigated to ${page.url()}`);
       await page._client.send('Animation.setPlaybackRate', { playbackRate: 20 });
       log(`Animation playback rate set to 20x on ${page.url()}`);
@@ -133,11 +136,6 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
 }
 
 Screenshotter.prototype.takeScreenshot = async function (page) {
-    if (this.options.delay) {
-      log(`Waiting ${this.options.delay}ms`);
-      await timeout(this.options.delay);
-    }
-
     let screenshotOptions = {encoding: (this.options.base64 ? "base64" : "binary")};
 
     log(`Finding page size`);
