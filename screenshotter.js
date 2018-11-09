@@ -22,7 +22,7 @@ function Screenshotter(options) {
     this.options = Object.assign({}, defaults, options);
 }
 
-Screenshotter.prototype.launchBrowser = function () {
+Screenshotter.prototype.launchBrowser = async function () {
     let screenshotter = this;
     let args = [];
     if (screenshotter.options.docker) {
