@@ -85,6 +85,8 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
     function interceptRequests(interceptedRequest) {
       const url = interceptedRequest.url();
       const filters = [
+        'cdn.walkme.com',
+        'www.googletagmanager.com',
         'www.google-analytics.com',
         'www.youtube.com'
       ];
