@@ -36,7 +36,7 @@ Screenshotter.prototype.puppetCheck = async function () {
 Screenshotter.prototype.launch = function () {
     let screenshotter = this;
     let args = [];
-    if (screenshotter.options.docker) args.push(...['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'])
+    if (screenshotter.options.docker) args.push(...['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--unlimited-storage', '--full-memory-crash-report'])
     puppeteer.launch({
         args: args
     }).then(async browser => {
@@ -150,6 +150,9 @@ Screenshotter.prototype.takeScreenshot = async function (page) {
 
     log(c.greenBright(`Screenshot completed ${page.url()} ✓`));
 
+    log(`Page clearing`);
+    await page.goto('about:blank');
+    log(`Page closing`);
     await page.close();
     log(`Page closed`);
 
