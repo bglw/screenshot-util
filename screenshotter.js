@@ -36,9 +36,11 @@ Screenshotter.prototype.puppetCheck = async function () {
 Screenshotter.prototype.launch = function () {
     let screenshotter = this;
     let args = [];
-    if (screenshotter.options.docker) args.push(...['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--unlimited-storage', '--full-memory-crash-report'])
+    if (screenshotter.options.docker) args.push(...['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--unlimited-storage', '--full-memory-crash-report', '--ignore-certificate-errors', '--ignore-certificate-errors-spki-list', '--enable-features=NetworkService'])
     puppeteer.launch({
-        args: args
+        args: args,
+        ignoreHTTPSErrors: true, 
+        dumpio: false
     }).then(async browser => {
         screenshotter.options.browser = browser;
     });
