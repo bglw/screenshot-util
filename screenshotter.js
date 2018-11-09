@@ -1,10 +1,15 @@
 const puppeteer = require('puppeteer');
 const express = require('express');
+const morgan = require('morgan');
 const fp = require("find-free-port");
 const c = require('ansi-colors');
 const log = require('fancy-log');
 const {TimeoutError} = require('puppeteer/Errors');
 const timeout = ms => new Promise(res => setTimeout(res, ms));
+
+// Default is 5
+const http = require('http');
+http.globalAgent.maxSockets = 100;
 
 const MAX_PUPPETEER_TIMEOUT = 60000;
 
@@ -23,9 +28,8 @@ function Screenshotter(options) {
 }
 
 Screenshotter.prototype.launchBrowser = async function () {
-    let screenshotter = this;
     let args = [];
-    if (screenshotter.options.docker) {
+    if (this.options.docker) {
       args.push(...['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--unlimited-storage', '--full-memory-crash-report', '--ignore-certificate-errors', '--ignore-certificate-errors-spki-list', '--enable-features=NetworkService']);
     }
 
@@ -38,14 +42,13 @@ Screenshotter.prototype.launchBrowser = async function () {
     return this.browser;
 }
 
-Screenshotter.prototype.serve = async function (path, portInc) {
-    let screenshotter = this;
+Screenshotter.prototype.launchServer = async function (path, portInc) {
     if (!path) {
-      path = screenshotter.options.path;
+      path = this.options.path;
     }
 
     if (!portInc) {
-      portInc = screenshotter.options.portInc;
+      portInc = this.options.portInc;
     }
 
     if (this.server) {
@@ -60,6 +63,7 @@ Screenshotter.prototype.serve = async function (path, portInc) {
     let [port] = await fp(5000);
     port += portInc;
 
+    this.expressApp.use(morgan('tiny'));
     this.expressApp.use(express.static(path));
     process.stdout.write(c.yellow('.\n'));
 
@@ -110,7 +114,7 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
 
     var successful = false;
     try {
-      await page.goto(requestUrl, {waitUntil: 'load'});
+      await page.goto(requestUrl, {timeout: 60000, waitUntil: 'load'});
       log(`Navigated to ${page.url()}`);
       await page._client.send('Animation.setPlaybackRate', { playbackRate: 20 });
       log(`Animation playback rate set to 20x on ${page.url()}`);
@@ -168,10 +172,12 @@ Screenshotter.prototype.takeScreenshot = async function (page) {
 
 Screenshotter.prototype.shutdownBrowser = async function () {
     await this.browser.close();
+    this.browser = null;
 }
 
 Screenshotter.prototype.shutdownServer = async function () {
     await this.server.close();
+    this.server = null;
 }
 
 module.exports = Screenshotter;
