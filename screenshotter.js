@@ -30,7 +30,16 @@ function Screenshotter(options) {
 Screenshotter.prototype.launchBrowser = async function () {
     let args = [];
     if (this.options.docker) {
-      args.push(...['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--unlimited-storage', '--full-memory-crash-report', '--ignore-certificate-errors', '--ignore-certificate-errors-spki-list', '--enable-features=NetworkService']);
+        args = [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--unlimited-storage',
+            '--full-memory-crash-report',
+            '--ignore-certificate-errors',
+            '--ignore-certificate-errors-spki-list',
+            '--enable-features=NetworkService'
+        ];
     }
 
     this.browser = await puppeteer.launch({
@@ -114,10 +123,7 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
 
     var successful = false;
     try {
-      await page.goto(requestUrl);
-      log(`Waiting ${this.options.delay}ms...`);
-      await timeout(this.options.delay);
-
+      await page.goto(requestUrl, {timeout: 60000, waitUntil: 'load'});
       log(`Navigated to ${page.url()}`);
       await page._client.send('Animation.setPlaybackRate', { playbackRate: 20 });
       log(`Animation playback rate set to 20x on ${page.url()}`);
@@ -136,6 +142,11 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
 }
 
 Screenshotter.prototype.takeScreenshot = async function (page) {
+    if (this.options.delay) {
+      log(`Waiting ${this.options.delay}ms`);
+      await timeout(this.options.delay);
+    }
+
     let screenshotOptions = {encoding: (this.options.base64 ? "base64" : "binary")};
 
     log(`Finding page size`);
