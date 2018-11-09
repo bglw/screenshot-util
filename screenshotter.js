@@ -28,26 +28,17 @@ function Screenshotter(options) {
 }
 
 Screenshotter.prototype.launchBrowser = async function () {
-    let args = [];
+    let options = {};
     if (this.options.docker) {
-        args = [
+        options.executablePath = 'google-chrome-unstable';
+        options.args = [
             '--no-sandbox',
             '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--unlimited-storage',
-            '--full-memory-crash-report',
-            '--ignore-certificate-errors',
-            '--ignore-certificate-errors-spki-list',
-            '--enable-features=NetworkService'
+            '--disable-dev-shm-usage'
         ];
     }
 
-    this.browser = await puppeteer.launch({
-        args: args,
-        ignoreHTTPSErrors: true,
-        dumpio: false
-    });
-
+    this.browser = await puppeteer.launch(options);
     return this.browser;
 }
 
