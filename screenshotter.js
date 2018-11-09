@@ -93,12 +93,11 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
         height: screenSize.height
     });
 
-    let filters = this.options.requestFilters;
+    const filters = this.options.requestFilters;
     if (filters) {
       await page.setRequestInterception(true);
       function interceptRequests(interceptedRequest) {
         const url = interceptedRequest.url();
-        const filters = filters;
         const shouldAbort = filters.some((urlPart) => url.includes(urlPart));
         if (shouldAbort) {
           log(c.yellow('Request blocked: ') + url);
