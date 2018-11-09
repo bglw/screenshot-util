@@ -63,7 +63,7 @@ Screenshotter.prototype.serve = async function (path, portInc) {
     this.expressApp.use(express.static(path));
     process.stdout.write(c.yellow('.\n'));
 
-    this.server = await expressApp.listen(port);
+    this.server = await this.expressApp.listen(port);
     log(c.greenBright(`Done ✓`));
 
     return `http://localhost:${port}`;
@@ -168,7 +168,7 @@ Screenshotter.prototype.shutdownBrowser = async function () {
 }
 
 Screenshotter.prototype.shutdownServer = async function () {
-    await this.options.server.close();
+    await this.server.close();
 }
 
 module.exports = Screenshotter;
