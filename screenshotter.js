@@ -18,52 +18,54 @@ function Screenshotter(options) {
         path: ".",
         portInc: 0
     }
+
     this.options = Object.assign({}, defaults, options);
 }
 
-Screenshotter.prototype.puppetLaunched = function () {
-    return !!this.options.browser;
-};
-
-Screenshotter.prototype.puppetCheck = async function () {
-    while (!this.puppetLaunched()) {
-        await timeout(500);
-        process.stdout.write(c.yellow(`:`));
-    }
-    return;
-};
-
-Screenshotter.prototype.launch = function () {
+Screenshotter.prototype.launchBrowser = function () {
     let screenshotter = this;
     let args = [];
-    if (screenshotter.options.docker) args.push(...['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--unlimited-storage', '--full-memory-crash-report', '--ignore-certificate-errors', '--ignore-certificate-errors-spki-list', '--enable-features=NetworkService'])
-    puppeteer.launch({
+    if (screenshotter.options.docker) {
+      args.push(...['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--unlimited-storage', '--full-memory-crash-report', '--ignore-certificate-errors', '--ignore-certificate-errors-spki-list', '--enable-features=NetworkService']);
+    }
+
+    this.browser = await puppeteer.launch({
         args: args,
-        ignoreHTTPSErrors: true, 
+        ignoreHTTPSErrors: true,
         dumpio: false
-    }).then(async browser => {
-        screenshotter.options.browser = browser;
     });
+
+    return this.browser;
 }
 
 Screenshotter.prototype.serve = async function (path, portInc) {
     let screenshotter = this;
-    if (!path) path = screenshotter.options.path;
-    if (!portInc) portInc = screenshotter.options.portInc;
-    if (screenshotter.options.server) {
-        const port = screenshotter.options.server.address().port;
+    if (!path) {
+      path = screenshotter.options.path;
+    }
+
+    if (!portInc) {
+      portInc = screenshotter.options.portInc;
+    }
+
+    if (this.server) {
+        const port = this.server.address().port;
         return `http://localhost:${port}`
     }
+
     process.stdout.write(c.yellow('Launching webserver...'));
-    const app = express();
+    this.expressApp = express();
+
     process.stdout.write(c.yellow('.'));
     let [port] = await fp(5000);
     port += portInc;
-    app.use(express.static(path));
-    screenshotter.options.app = app;
+
+    this.expressApp.use(express.static(path));
     process.stdout.write(c.yellow('.\n'));
-    screenshotter.options.server = await app.listen(port);
+
+    this.server = await expressApp.listen(port);
     log(c.greenBright(`Done ✓`));
+
     return `http://localhost:${port}`;
 }
 
@@ -73,7 +75,7 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
     log(`Loading ${url} on ${screenSize.name}`);
     log('Launching page');
 
-    const page = await this.options.browser.newPage();
+    const page = await this.browser.newPage();
 
     log('Setting up page');
     await page.emulateMedia('screen');
@@ -162,7 +164,7 @@ Screenshotter.prototype.takeScreenshot = async function (page) {
 }
 
 Screenshotter.prototype.shutdownBrowser = async function () {
-    await this.options.browser.close();
+    await this.browser.close();
 }
 
 Screenshotter.prototype.shutdownServer = async function () {
