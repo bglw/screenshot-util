@@ -1,10 +1,17 @@
 const puppeteer = require('puppeteer');
 const express = require('express');
+const morgan = require('morgan');
 const fp = require("find-free-port");
 const c = require('ansi-colors');
 const log = require('fancy-log');
 const {TimeoutError} = require('puppeteer/Errors');
 const timeout = ms => new Promise(res => setTimeout(res, ms));
+var pjson = require('./package.json');
+console.log(c.yellow(`Running ${pjson.name} ${pjson.version}`));
+
+// Default is 5
+const http = require('http');
+http.globalAgent.maxSockets = 100;
 
 const MAX_PUPPETEER_TIMEOUT = 60000;
 
@@ -12,6 +19,8 @@ function Screenshotter(options) {
     const defaults = {
         fullPage: false,
         url: "https://cloudcannon.com",
+        requestFilters: null, // ['www.googletagmanager.com', 'www.google-analytics.com', 'www.youtube.com']
+        logServerCalls: false,
         base64: false,
         docker: false,
         delay: 300,
@@ -23,34 +32,37 @@ function Screenshotter(options) {
 }
 
 Screenshotter.prototype.launchBrowser = async function () {
-    let screenshotter = this;
-    let args = [];
-    if (screenshotter.options.docker) {
-      args.push(...['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--unlimited-storage', '--full-memory-crash-report', '--ignore-certificate-errors', '--ignore-certificate-errors-spki-list', '--enable-features=NetworkService']);
+    let options = {};
+    if (this.options.docker) {
+        options.executablePath = 'google-chrome-unstable';
+        options.args = [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage'
+        ];
     }
 
-    this.browser = await puppeteer.launch({
-        args: args,
-        ignoreHTTPSErrors: true,
-        dumpio: false
-    });
+    if (process.env.BROWSER) {
+        this.browser = await puppeteer.connect({ browserWSEndpoint: process.env.BROWSER });
+    } else {
+        this.browser = await puppeteer.launch(options);
+    }
 
     return this.browser;
 }
 
-Screenshotter.prototype.serve = async function (path, portInc) {
-    let screenshotter = this;
+Screenshotter.prototype.launchServer = async function (path, portInc) {
     if (!path) {
-      path = screenshotter.options.path;
+      path = this.options.path;
     }
 
     if (!portInc) {
-      portInc = screenshotter.options.portInc;
+      portInc = this.options.portInc;
     }
 
     if (this.server) {
         const port = this.server.address().port;
-        return `http://localhost:${port}`
+        return `http://${process.env.DOMAIN||"localhost"}:${port}`
     }
 
     process.stdout.write(c.yellow('Launching webserver...'));
@@ -60,13 +72,16 @@ Screenshotter.prototype.serve = async function (path, portInc) {
     let [port] = await fp(5000);
     port += portInc;
 
+    if (this.options.logServerCalls) {
+      this.expressApp.use(morgan('tiny'));
+    }
     this.expressApp.use(express.static(path));
     process.stdout.write(c.yellow('.\n'));
 
     this.server = await this.expressApp.listen(port);
     log(c.greenBright(`Done ✓`));
 
-    return `http://localhost:${port}`;
+    return `http://${process.env.DOMAIN||"localhost"}:${port}`;
 }
 
 Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
@@ -85,44 +100,46 @@ Screenshotter.prototype.loadPage = async function(serverUrl, url, screenSize) {
         height: screenSize.height
     });
 
-    await page.setRequestInterception(true);
-    function interceptRequests(interceptedRequest) {
-      const url = interceptedRequest.url();
-      const filters = [
-        'cdn.walkme.com',
-        'www.googletagmanager.com',
-        'www.google-analytics.com',
-        'www.youtube.com'
-      ];
-      const shouldAbort = filters.some((urlPart) => url.includes(urlPart));
-      if (shouldAbort) {
-        log(c.yellow('Request blocked: ') + url);
-        interceptedRequest.abort();
-      } else {
-        log(c.blue('Request started: ') + url);
-        interceptedRequest.continue();
+    const filters = this.options.requestFilters;
+    if (filters) {
+      await page.setRequestInterception(true);
+      function interceptRequests(interceptedRequest) {
+        const url = interceptedRequest.url();
+        const shouldAbort = filters.some((urlPart) => url.includes(urlPart));
+        if (shouldAbort) {
+          log(c.yellow('Request blocked: ') + url);
+          interceptedRequest.abort();
+        } else {
+          log(c.blue('Request started: ') + url);
+          interceptedRequest.continue();
+        }
       }
+
+      page.on('request', interceptRequests);
     }
 
-    page.on('request', interceptRequests);
-
     log(`Navigating to ${requestUrl}`);
+
+    var successful = false;
     try {
-      await page.goto(requestUrl, {waitUntil: 'load'});
+      await page.goto(requestUrl, {timeout: 60000, waitUntil: 'load'});
       log(`Navigated to ${page.url()}`);
       await page._client.send('Animation.setPlaybackRate', { playbackRate: 20 });
       log(`Animation playback rate set to 20x on ${page.url()}`);
+      successful = true;
     } catch (e) {
       if (e instanceof TimeoutError) {
-        log(`Navigation timed out on ${page.url()}, trying to continue`);
+        log(`Navigation timed out on ${page.url()}`);
       } else {
-        log(`Navigation failed on ${page.url()}, trying to continue`);
+        log(`Navigation failed on ${page.url()}`);
         log.error(e);
       }
     }
 
-    page.removeListener('request', interceptRequests);
-    return page;
+    if (filters) {
+      page.removeListener('request', interceptRequests)
+    }
+    return successful ? page : null;
 }
 
 Screenshotter.prototype.takeScreenshot = async function (page) {
@@ -154,8 +171,6 @@ Screenshotter.prototype.takeScreenshot = async function (page) {
 
     log(c.greenBright(`Screenshot completed ${page.url()} ✓`));
 
-    log(`Page clearing`);
-    await page.goto('about:blank');
     log(`Page closing`);
     await page.close();
     log(`Page closed`);
@@ -165,10 +180,12 @@ Screenshotter.prototype.takeScreenshot = async function (page) {
 
 Screenshotter.prototype.shutdownBrowser = async function () {
     await this.browser.close();
+    this.browser = null;
 }
 
 Screenshotter.prototype.shutdownServer = async function () {
     await this.server.close();
+    this.server = null;
 }
 
 module.exports = Screenshotter;
